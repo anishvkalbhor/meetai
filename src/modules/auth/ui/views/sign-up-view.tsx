@@ -19,22 +19,26 @@ import {
 } from "@/components/ui/form";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { FaGithub, FaGoogle } from "react-icons/fa";
 
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Name is required" }),
-  email: z.string().email(),
-  password: z.string()
-    .min(8, { message: "Password must be at least 8 characters" })
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { 
-      message: "Password must contain at least one uppercase letter, one lowercase letter, and one number" 
-    }),
-  confirmPassword: z.string().min(1, { message: "Password confirmation is required" }),})
-.refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+
+const formSchema = z
+  .object({
+    name: z.string().min(1, { message: "Name is required" }),
+    email: z.string().email(),
+    password: z
+      .string()
+      .min(1, { message: "Password is required" }),
+    confirmPassword: z
+      .string()
+      .min(1, { message: "Password confirmation is required" }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export const SignUpView = () => {
   const router = useRouter();
@@ -60,6 +64,7 @@ export const SignUpView = () => {
         name: data.name,
         email: data.email,
         password: data.password,
+        callbackURL: "/",
       },
       {
         onSuccess: () => {
@@ -70,7 +75,29 @@ export const SignUpView = () => {
           setPending(false);
           setError(error.message);
         },
-      }    );
+      }
+    );
+  };
+
+  const onSocial = (provider: "github" | "google") => {
+    setError(null);
+    setPending(true);
+
+    authClient.signIn.social(
+      {
+        provider: provider,
+        callbackURL: "/",
+      },
+      {
+        onSuccess: () => {
+          setPending(false);
+        },
+        onError: ({ error }) => {
+          setPending(false);
+          setError(error.message);
+        },
+      }
+    );
   };
 
   return (
@@ -170,7 +197,8 @@ export const SignUpView = () => {
                 )}
                 <Button disabled={pending} type="submit" className="w-full">
                   Sign Up
-                </Button>                <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
+                </Button>{" "}
+                <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                   <span className="bg-card text-muted-foreground relative z-10 px-2">
                     Or continue with
                   </span>
@@ -181,16 +209,18 @@ export const SignUpView = () => {
                     className="w-full"
                     type="button"
                     disabled={pending}
+                    onClick={() => onSocial("google")}
                   >
-                    Google
+                    <FaGoogle />
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full"
                     type="button"
                     disabled={pending}
+                    onClick={() => onSocial("github")}
                   >
-                    Github
+                    <FaGithub />
                   </Button>
                 </div>
                 <div className="text-center text-sm">
@@ -218,7 +248,11 @@ export const SignUpView = () => {
         </CardContent>
       </Card>
 
-      <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
+      <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
+        {" "}
+        By clicking continue, you agree to our <a href="#">
+          Terms of Service
+        </a>{" "}
         and <a href="#">Privacy Policy</a>.
       </div>
     </div>
