@@ -22,11 +22,10 @@ export const AgentsViewLoading = () => {
 };
 
 export const AgentsViewError = () => {
-    return (
-
-        <ErrorState
-        title="Error loading Agents"
-        description="Something went wrong, try again!"
-        />
-    )
+  return (
+    <ErrorState
+      title="Error loading Agents"
+      description="Something went wrong, try again!"
+    />
+  );
 };
