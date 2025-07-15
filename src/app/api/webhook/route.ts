@@ -8,16 +8,99 @@ import {
 } from "@stream-io/node-sdk";
 
 import { and, eq, not } from "drizzle-orm";
-
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 import { db } from "@/db";
 import { agents, meetings } from "@/db/schema";
-import { streamVideo } from "@/lib/stream-video";
+import { streamVideo } from "@/lib/stream-video-server";
 import { inngest } from "@/inngest/client";
+import { askAgent } from "@/lib/openrouter";
 
+import jwt from "jsonwebtoken";
+
+// src/app/api/webhook/route.ts
+async function joinStreamCallSession(meetingId: string, agentId: string) {
+  console.log(`Joining agent ${agentId} to meeting ${meetingId}`);
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!;
+    const secret = process.env.NEXT_VIDEO_SECRET_KEY!;
+    const response = await fetch(
+      `https://video.stream-io-api.com/api/v1/call/default/${meetingId}/join`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${generateJwt(apiKey, secret)}`,
+        },
+        body: JSON.stringify({ agentId }),
+      }
+    );
+    console.log(`Response from Stream.io API: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      console.error(`Error joining call: ${await response.text()}`);
+    }
+  } catch (error) {
+    console.error(`Failed to join agent ${agentId} to meeting ${meetingId}: ${error}`);
+  }
+}
+
+// src/app/api/webhook/route.ts
+async function handleCallSessionStartedEvent(event: CallSessionStartedEvent) {
+  try {
+    const meetingId = (event as any).meetingId;
+    const agentId = (event as any).agentId;
+    await joinStreamCallSession(meetingId, agentId);
+    console.log(`Agent joined meeting ${meetingId}`);
+  } catch (error) {
+    console.error(`Failed to join meeting: ${error}`);
+  }
+}
+
+async function endStreamCallSession(meetingId: string) {
+  const apiKey = process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!;
+  const secret = process.env.NEXT_VIDEO_SECRET_KEY!;
+
+  const response = await fetch(
+    `https://video.stream-io-api.com/api/v1/call/default/${meetingId}/end`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${generateJwt(apiKey, secret)}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to end call: ${error}`);
+  }
+
+  return await response.json();
+}
+
+function generateJwt(apiKey: string, apiSecret: string) {
+  const payload = {
+    user_id: "server",
+    exp: Math.floor(Date.now() / 1000) + 60 * 5,
+  };
+
+  return jwt.sign(payload, apiSecret, {
+    algorithm: "HS256",
+    header: { kid: apiKey, alg: "HS256" },
+  });
+}
+
+// ✅ Signature verification
 function verifySignatureWithSDK(body: string, signature: string): boolean {
-  return streamVideo.verifyWebhook(body, signature);
+  const secret = process.env.NEXT_VIDEO_SECRET_KEY!;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(body, "utf-8")
+    .digest("hex");
+
+  return expected === signature;
 }
 
 export async function POST(req: NextRequest) {
@@ -49,6 +132,7 @@ export async function POST(req: NextRequest) {
 
   const eventType = (payload as Record<string, unknown>)?.type;
 
+  // ✅ Handle call.session_started
   if (eventType === "call.session_started") {
     const event = payload as CallSessionStartedEvent;
     const meetingId = event.call.custom?.meetingId;
@@ -97,16 +181,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const call = streamVideo.video.call("default", meetingId);
-    const realtimeClient = await streamVideo.video.connectOpenAi({
-      call,
-      openAiApiKey: process.env.OPENAI_API_KEY!,
-      agentUserId: existingAgent.id,
-    });
+    try {
+      const agentIntro = await askAgent({
+        messages: [
+          {
+            role: "system",
+            content:
+              existingAgent.instructions ??
+              "You are a helpful AI agent in a meeting.",
+          },
+          {
+            role: "user",
+            content: "The meeting has started. Please greet the participants.",
+          },
+        ],
+      });
 
-    realtimeClient.updateSession({
-      instructions: existingAgent.instructions,
-    });
+      // Upsert agent as chat user
+      await streamVideo.chat.upsertUser({
+        id: existingAgent.id,
+        name: existingAgent.name,
+      });
+
+      // Send agent message to videocall chat channel
+      const channel = streamVideo.chat.channel("videocall", meetingId);
+      await channel.create();
+      await channel.sendMessage({
+        text: agentIntro,
+        user_id: existingAgent.id,
+      });
+    } catch (err) {
+      console.error("Error asking agent or sending message:", err);
+      return NextResponse.json(
+        { error: "Failed to process AI agent greeting" },
+        { status: 500 }
+      );
+    }
+
+    // ✅ Handle participant leaving
   } else if (eventType === "call.session_participant_left") {
     const event = payload as CallSessionParticipantLeftEvent;
     const meetingId = event.call_cid.split(":")[1];
@@ -118,8 +230,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const call = streamVideo.video.call("default", meetingId);
-    await call.end();
+    // Use callSessions API to end call
+    await endStreamCallSession(meetingId);
+
+    // ✅ Handle call end
   } else if (eventType === "call.session_ended") {
     const event = payload as CallEndedEvent;
     const meetingId = event.call.custom?.meetingId;
@@ -135,6 +249,8 @@ export async function POST(req: NextRequest) {
       .update(meetings)
       .set({ status: "processing", endedAt: new Date() })
       .where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")));
+
+    // ✅ Handle transcription
   } else if (eventType === "call.transcription_ready") {
     const event = payload as CallTranscriptionReadyEvent;
     const meetingId = event.call_cid.split(":")[1];
@@ -153,13 +269,16 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
+
     await inngest.send({
       name: "meetings/processing",
       data: {
         meetingId: updatedMeeting.id,
         transcriptUrl: updatedMeeting.transcriptUrl,
-      }
-    })
+      },
+    });
+
+    // ✅ Handle recording
   } else if (eventType === "call.recording_ready") {
     const event = payload as CallRecordingReadyEvent;
     const meetingId = event.call_cid.split(":")[1];
