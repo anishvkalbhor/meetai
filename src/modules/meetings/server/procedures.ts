@@ -12,8 +12,61 @@ import {
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schemas";
 import { MeetingStatus } from "../types";
-import { streamVideo } from "@/lib/stream-video";
+import { streamVideo } from "@/lib/stream-video-server";
 import { generateAvatarUri } from "@/lib/avatar";
+import { streamVideoClient } from "@/lib/stream-video-client";
+
+import jwt from "jsonwebtoken";
+
+function generateServerJwt() {
+  const payload = {
+    user_id: "server",
+    exp: Math.floor(Date.now() / 1000) + 60 * 5,
+  };
+
+  return jwt.sign(payload, process.env.NEXT_VIDEO_SECRET_KEY!, {
+    header: { kid: process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!, alg: "HS256" },
+  });
+}
+
+async function createStreamCall(meetingId: string, userId: string, meetingName: string) {
+  const token = generateServerJwt();
+
+  const res = await fetch(`https://video.stream-io-api.com/api/v1/call/default/${meetingId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      data: {
+        created_by_id: userId,
+        custom: {
+          meetingId,
+          meetingName,
+        },
+        settings_override: {
+          transcription: {
+            language: "en",
+            mode: "auto-on",
+            closed_caption_mode: "auto-on",
+          },
+          recording: {
+            mode: "auto-on",
+            quality: "1080p",
+          },
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Stream call creation failed: ${await res.text()}`);
+  }
+
+  return res.json();
+}
+
 
 export const meetingsRouter = createTRPCRouter({
   generateToken: protectedProcedure.mutation(async ({ ctx }) => {
@@ -86,64 +139,50 @@ export const meetingsRouter = createTRPCRouter({
     }),
 
   create: protectedProcedure
-    .input(meetingsInsertSchema)
-    .mutation(async ({ input, ctx }) => {
-      const [createdMeeting] = await db
-        .insert(meetings)
-        .values({
-          ...input,
-          userId: ctx.auth.user.id,
-        })
-        .returning();
+  .input(meetingsInsertSchema)
+  .mutation(async ({ input, ctx }) => {
+    const [createdMeeting] = await db
+      .insert(meetings)
+      .values({
+        ...input,
+        userId: ctx.auth.user.id,
+      })
+      .returning();
 
-      const call = streamVideo.video.call("default", createdMeeting.id);
-      await call.create({
-        data: {
-          created_by_id: ctx.auth.user.id,
-          custom: {
-            meetingId: createdMeeting.id,
-            meetingName: createdMeeting.name,
-          },
-          settings_override: {
-            transcription: {
-              language: "en",
-              mode: "auto-on",
-              closed_caption_mode: "auto-on",
-            },
-            recording: {
-              mode: "auto-on",
-              quality: "1080p",
-            },
-          },
-        },
+    // ✅ Use server-safe REST API call to create Stream call
+    await createStreamCall(
+      createdMeeting.id,
+      ctx.auth.user.id,
+      createdMeeting.name
+    );
+
+    const [existingAgent] = await db
+      .select()
+      .from(agents)
+      .where(eq(agents.id, createdMeeting.agentId));
+
+    if (!existingAgent) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Agent not found",
       });
+    }
 
-      const [existingAgent] = await db
-        .select()
-        .from(agents)
-        .where(eq(agents.id, createdMeeting.agentId));
+    await streamVideo.upsertUsers([
+      {
+        id: existingAgent.id,
+        name: existingAgent.name,
+        role: "user",
+        image: generateAvatarUri({
+          seed: existingAgent.name,
+          variant: "botttsNeutral",
+        }),
+      },
+    ]);
 
-      if (!existingAgent) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Agent not found",
-        });
-      }
+    return createdMeeting;
+  }),
 
-      await streamVideo.upsertUsers([
-        {
-          id: existingAgent.id,
-          name: existingAgent.name,
-          role: "user",
-          image: generateAvatarUri({
-            seed: existingAgent.name,
-            variant: "botttsNeutral",
-          }),
-        },
-      ]);
-
-      return createdMeeting;
-    }),
 
   // Procedures for getting Meetings
   // Retrieves a single Meeting by ID

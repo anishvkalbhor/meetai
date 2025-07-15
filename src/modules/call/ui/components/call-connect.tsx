@@ -46,8 +46,12 @@ export const CallConnect = ({
         name: userName,
         image: userImage,
       },
-      tokenProvider: generateToken,
+      tokenProvider: async () => {
+        const token = await generateToken();
+        return token;
+      },
     });
+    
 
     setClient(_client);
 
@@ -86,9 +90,9 @@ export const CallConnect = ({
 
   return (
     <StreamVideo client={client}>
-        <StreamCall call={call}>
-            <CallUI meetingName={meetingName} />
-        </StreamCall>
+      <StreamCall call={call}>
+        <CallUI meetingName={meetingName} />
+      </StreamCall>
     </StreamVideo>
-  )
+  );
 };
