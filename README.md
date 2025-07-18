@@ -1,4 +1,4 @@
-<!-- Banner Section -->
+<img width="1914" height="974" alt="Screenshot 2025-07-18 195230" src="https://github.com/user-attachments/assets/9dd55387-dd0d-4407-864f-2710359f7efc" /><img width="1914" height="974" alt="image" src="https://github.com/user-attachments/assets/b1ab99c3-a0a9-453c-8353-c6a5d25ac316" /><!-- Banner Section -->
 <p align="center">
   <img src="https://readme-typing-svg.herokuapp.com/?font=Righteous&size=28&center=true&vCenter=true&width=800&height=80&duration=4000&lines=Meet.AI+💬+Your+AI-powered+Meeting+Assistant" />
 </p>
@@ -49,9 +49,22 @@
 
 ## 🖼️ UI Previews (Coming Soon)
 
-| Dashboard | Agent Builder | Meeting Room |
-|----------|----------------|--------------|
-| ![Dashboard](https://placehold.co/300x150?text=Dashboard) | ![Agents](https://placehold.co/300x150?text=Agents) | ![Meeting](https://placehold.co/300x150?text=CallView) |
+<div align="center">
+
+<h4>📊 Agents Page</h4>
+<img width="600" height="500" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/968d119e-bd07-4f94-afde-1ada3ba9996e" />
+<br/><br/>
+
+<h4>🛠️ Create Agent</h4>
+<img width="600" height="500" alt="Agent Builder Screenshot" src="https://github.com/user-attachments/assets/81aa3bc9-e4f6-423e-bba2-6577573f2df2" />
+<br/><br/>
+
+
+<h4>📞 Create Meeting</h4>
+<img width="600" height="500" alt="image" src="https://github.com/user-attachments/assets/2171ca35-ec78-4852-878f-72e4392550b9" />
+
+
+</div>
 
 ---
 
