@@ -1,4 +1,4 @@
-<img width="1914" height="974" alt="Screenshot 2025-07-18 195230" src="https://github.com/user-attachments/assets/9dd55387-dd0d-4407-864f-2710359f7efc" /><img width="1914" height="974" alt="image" src="https://github.com/user-attachments/assets/b1ab99c3-a0a9-453c-8353-c6a5d25ac316" /><!-- Banner Section -->
+
 <p align="center">
   <img src="https://readme-typing-svg.herokuapp.com/?font=Righteous&size=28&center=true&vCenter=true&width=800&height=80&duration=4000&lines=Meet.AI+💬+Your+AI-powered+Meeting+Assistant" />
 </p>
