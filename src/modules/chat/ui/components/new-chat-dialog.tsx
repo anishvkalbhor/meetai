@@ -97,8 +97,8 @@ export const NewChatDialog = ({ children }: Props) => {
         instructions: agentInstructions.trim(),
         aiProvider,
         aiModel,
-        temperature,
-        maxTokens,
+        temperature: Number(temperature),
+        maxTokens: Number(maxTokens),
       });
     } catch (error) {
       console.error("Failed to create agent:", error);

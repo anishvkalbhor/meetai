@@ -99,9 +99,7 @@ export const AgentForm = ({
       temperature: Number(initialValues?.temperature ?? 0.7),
       maxTokens: Number(initialValues?.maxTokens ?? 1000),
     },
-  });
-  
-  
+  });  
 
   const isEdit = !!initialValues?.id;
   const isPending = createAgent.isPending || updateAgent.isPending;
