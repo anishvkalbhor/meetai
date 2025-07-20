@@ -57,6 +57,10 @@ export const agents = pgTable("agents", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
     instructions: text("instructions").notNull(),
+    aiProvider: text("ai_provider").notNull().default("openrouter"), // openrouter, gemini, llama, anthropic
+    aiModel: text("ai_model").notNull().default("mistralai/mistral-7b-instruct"),
+    temperature: text("temperature").notNull().default("0.7"),
+    maxTokens: text("max_tokens").notNull().default("1000"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
 })
@@ -88,4 +92,32 @@ export const meetings = pgTable("meetings", {
     summary: text("summary"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+export const chatSessions = pgTable("chat_sessions", {
+    id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+    userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+    agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("New Chat"),
+    status: text("status").notNull().default("active"), // active, archived
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+export const chatMessages = pgTable("chat_messages", {
+    id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+    sessionId: text("session_id")
+    .notNull()
+    .references(() => chatSessions.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // user, assistant
+    content: text("content").notNull(),
+    timestamp: timestamp("timestamp").notNull().defaultNow(),
 })

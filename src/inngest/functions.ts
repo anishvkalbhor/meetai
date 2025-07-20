@@ -7,6 +7,7 @@ import JSONL from "jsonl-parse-stringify";
 import { createAgent, gemini, TextMessage } from "@inngest/agent-kit";
 import { streamVideo } from "@/lib/stream-video-server";
 import { StreamChat } from "stream-chat";
+import { askAIAgent } from "@/lib/ai-service";
 
 const model = gemini({
   model: "gemini-1.5-flash",
@@ -39,75 +40,84 @@ export const meetingsProcessing = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
-    const response = await step.run("fetch-transcript", async () => {
-      return fetch(event.data.transcriptUrl).then((res) => res.text());
-    });
+    try {
+      const response = await step.run("fetch-transcript", async () => {
+        return fetch(event.data.transcriptUrl).then((res) => res.text());
+      });
 
-    const transcript = await step.run("parse-transcript", async () => {
-      return JSONL.parse<StreamTranscriptItem>(response);
-    });
+      const transcript = await step.run("parse-transcript", async () => {
+        return JSONL.parse<StreamTranscriptItem>(response);
+      });
 
-    const transcriptWithSpeakers = await step.run("add-speakers", async () => {
-      const speakerIds = [
-        ...new Set(transcript.map((item) => item.speaker_id)),
-      ];
+      const transcriptWithSpeakers = await step.run("add-speakers", async () => {
+        const speakerIds = [
+          ...new Set(transcript.map((item) => item.speaker_id)),
+        ];
 
-      const userSpeakers = await db
-        .select()
-        .from(user)
-        .where(inArray(user.id, speakerIds))
-        .then((users) =>
-          users.map((user) => ({
-            ...user,
-          }))
-        );
-      const agentSpeakers = await db
-        .select()
-        .from(agents)
-        .where(inArray(agents.id, speakerIds))
-        .then((agents) =>
-          agents.map((agent) => ({
-            ...agent,
-          }))
-        );
+        const userSpeakers = await db
+          .select()
+          .from(user)
+          .where(inArray(user.id, speakerIds))
+          .then((users) =>
+            users.map((user) => ({
+              ...user,
+            }))
+          );
+        const agentSpeakers = await db
+          .select()
+          .from(agents)
+          .where(inArray(agents.id, speakerIds))
+          .then((agents) =>
+            agents.map((agent) => ({
+              ...agent,
+            }))
+          );
 
-      const speakers = [...userSpeakers, ...agentSpeakers];
+        const speakers = [...userSpeakers, ...agentSpeakers];
 
-      return transcript.map((item) => {
-        const speaker = speakers.find(
-          (speaker) => speaker.id === item.speaker_id
-        );
-        if (!speaker) {
+        return transcript.map((item) => {
+          const speaker = speakers.find(
+            (speaker) => speaker.id === item.speaker_id
+          );
+          if (!speaker) {
+            return {
+              ...item,
+              user: {
+                name: "Unknown",
+              },
+            };
+          }
+
           return {
             ...item,
             user: {
-              name: "Unknown",
+              name: speaker.name,
             },
           };
-        }
-
-        return {
-          ...item,
-          user: {
-            name: speaker.name,
-          },
-        };
+        });
       });
-    });
 
-    const { output } = await summarizer.run(
-      JSON.stringify(transcriptWithSpeakers)
-    );
+      const { output } = await summarizer.run(
+        JSON.stringify(transcriptWithSpeakers)
+      );
 
-    await step.run("save-summary", async () => {
+      await step.run("save-summary", async () => {
+        await db
+          .update(meetings)
+          .set({
+            summary: (output[0] as TextMessage).content as string,
+            status: "completed",
+          })
+          .where(eq(meetings.id, event.data.meetingId));
+      });
+    } catch (error) {
+      console.error("Meeting processing failed:", error);
+      // Mark meeting as completed even if processing fails
       await db
         .update(meetings)
-        .set({
-          summary: (output[0] as TextMessage).content as string,
-          status: "completed",
-        })
+        .set({ status: "completed" })
         .where(eq(meetings.id, event.data.meetingId));
-    });
+    }
   }
 );
 
@@ -115,59 +125,62 @@ export const handleChatMessage = inngest.createFunction(
   { id: "meetings/chat-message" },
   { event: "events/chat.message.sent" },
   async ({ event, step }) => {
-    const { meetingId, message, agentId } = event.data;
+    try {
+      const { meetingId, message, agentId } = event.data;
 
-    // 1. Get agent instructions from DB
-    const [agent] = await step.run("fetch-agent-instructions", () => {
-      return db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
-    });
+      // 1. Get agent instructions from DB
+      const [agent] = await step.run("fetch-agent-instructions", () => {
+        return db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+      });
 
-    if (!agent || !agent.instructions) {
-      // No instructions, so do nothing.
-      return;
+      if (!agent || !agent.instructions) {
+        // No instructions, so do nothing.
+        return;
+      }
+
+      // 2. Run the chat agent with custom instructions
+      const responseText = await askAIAgent({
+        messages: [
+          {
+            role: "system",
+            content: agent.instructions,
+          },
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+        provider: agent.aiProvider || "openrouter",
+        model: agent.aiModel || "mistralai/mistral-7b-instruct",
+        temperature: parseFloat(agent.temperature || "0.7"),
+        maxTokens: parseInt(agent.maxTokens || "1000"),
+      });
+
+      // 3. Send the response back to the Stream chat
+      await step.run("send-chat-response", async () => {
+        const client = StreamChat.getInstance(
+          process.env.STREAM_API_KEY!,
+          process.env.STREAM_SECRET!
+        );
+
+        const channel = client.channel("messaging", meetingId, {
+          members: [agentId],
+        });
+
+        await channel.create(); // No-op if already exists
+
+        const { message } = await channel.sendMessage({
+          text: responseText,
+          user_id: agentId,
+        });
+
+        return { message };
+      });
+
+      return { message: "Response sent" };
+    } catch (error) {
+      console.error("Chat message handling failed:", error);
+      return { error: "Failed to process chat message" };
     }
-
-    // 2. Run the chat agent with custom instructions
-    const chatInput = JSON.stringify([
-      {
-        role: "system",
-        content: agent.instructions,
-      },
-      {
-        role: "user",
-        content: message,
-      },
-    ]);
-    const { output } = await chatAgent.run(chatInput);
-
-    const raw = output[0] as TextMessage;
-
-    const responseText =
-      typeof raw.content === "string"
-        ? raw.content
-        : raw.content.map((c) => c.text).join(" ");
-
-    // 3. Send the response back to the Stream chat
-    await step.run("send-chat-response", async () => {
-      const client = StreamChat.getInstance(
-        process.env.STREAM_API_KEY!,
-        process.env.STREAM_SECRET!
-      );
-
-      const channel = client.channel("messaging", meetingId, {
-        members: [agentId],
-      });
-
-      await channel.create(); // No-op if already exists
-
-      const { message } = await channel.sendMessage({
-        text: responseText,
-        user_id: agentId,
-      });
-
-      return { message };
-    });
-
-    return { message: "Response sent" };
   }
 );
