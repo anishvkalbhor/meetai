@@ -67,16 +67,27 @@ export const CallConnect = ({
     if (!client) return;
 
     const _call = client.call("default", meetingId);
+    
+    // Check if we have valid configuration
+    if (!process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY) {
+      console.error("Missing Stream.io Video API key");
+      return;
+    }
+    
     _call.camera.disable();
     _call.microphone.disable();
     setCall(_call);
 
     return () => {
-      if (_call.state.callingState !== CallingState.LEFT) {
-        _call.leave();
-        _call.endCall();
-        setCall(undefined);
+      if (_call.state.callingState !== "left" && _call.state.callingState !== "offline") {
+        try {
+          _call.leave();
+        } catch (error) {
+          console.log("Call already left during cleanup");
+        }
       }
+      _call.endCall();
+      setCall(undefined);
     };
   }, [client, meetingId]);
 

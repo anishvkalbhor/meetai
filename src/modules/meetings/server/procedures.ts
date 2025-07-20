@@ -31,6 +31,15 @@ function generateServerJwt() {
 
 async function createStreamCall(meetingId: string, userId: string, meetingName: string) {
   const token = generateServerJwt();
+  
+  // Debug logging
+  console.log("Creating Stream call with:", {
+    meetingId,
+    userId,
+    meetingName,
+    hasApiKey: !!process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY,
+    hasSecretKey: !!process.env.NEXT_VIDEO_SECRET_KEY,
+  });
 
   const res = await fetch(`https://video.stream-io-api.com/api/v1/call/default/${meetingId}`, {
     method: "POST",
@@ -61,7 +70,14 @@ async function createStreamCall(meetingId: string, userId: string, meetingName: 
   });
 
   if (!res.ok) {
-    throw new Error(`Stream call creation failed: ${await res.text()}`);
+    const errorText = await res.text();
+    console.error("Stream call creation failed:", {
+      status: res.status,
+      statusText: res.statusText,
+      error: errorText,
+      url: `https://video.stream-io-api.com/api/v1/call/default/${meetingId}`,
+    });
+    throw new Error(`Stream call creation failed: ${errorText}`);
   }
 
   return res.json();

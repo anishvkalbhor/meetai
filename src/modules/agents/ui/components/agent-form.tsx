@@ -21,6 +21,17 @@ import {
 } from "@/components/ui/form";
 import { eachHourOfInterval } from "date-fns";
 import { toast } from "sonner";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FormDescription } from "@/components/ui/form";
+
+import { getAvailableProviders, getModelsForProvider } from "@/lib/ai-service";
 
 interface AgentFormProps {
   onSuccess?: () => void;
@@ -35,6 +46,10 @@ export const AgentForm = ({
 }: AgentFormProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+
+  const [selectedProvider, setSelectedProvider] = useState(initialValues?.aiProvider || "openrouter");
+  const availableProviders = getAvailableProviders();
+  const availableModels = getModelsForProvider(selectedProvider);
 
   const createAgent = useMutation(
     trpc.agents.create.mutationOptions({
@@ -79,6 +94,10 @@ export const AgentForm = ({
     defaultValues: {
       name: initialValues?.name ?? "",
       instructions: initialValues?.instructions ?? "",
+      aiProvider: initialValues?.aiProvider ?? "openrouter",
+      aiModel: initialValues?.aiModel ?? "mistralai/mistral-7b-instruct",
+      temperature: initialValues?.temperature ?? "0.7",
+      maxTokens: initialValues?.maxTokens ?? "1000",
     },
   });
 
@@ -131,6 +150,113 @@ export const AgentForm = ({
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            name="aiProvider"
+            control={form.control}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>AI Provider</FormLabel>
+                <FormControl>
+                  <Select onValueChange={(value) => {
+                    field.onChange(value);
+                    setSelectedProvider(value);
+                    // Reset model to default for new provider
+                    form.setValue("aiModel", getModelsForProvider(value)[0] || "");
+                  }} defaultValue={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select AI Provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableProviders.map((provider) => (
+                        <SelectItem key={provider.name.toLowerCase()} value={provider.name.toLowerCase()}>
+                          {provider.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            name="aiModel"
+            control={form.control}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>AI Model</FormLabel>
+                <FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select AI Model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model.split('/').pop() || model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            name="temperature"
+            control={form.control}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Temperature</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.1" 
+                    min="0" 
+                    max="2" 
+                    placeholder="0.7" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Controls randomness (0 = focused, 2 = creative)
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            name="maxTokens"
+            control={form.control}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Max Tokens</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    min="1" 
+                    max="4000" 
+                    placeholder="1000" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Maximum response length
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <div className="flex justify-between gap-x-2">
           {onCancel && (
             <Button
