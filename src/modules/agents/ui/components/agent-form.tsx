@@ -89,17 +89,26 @@ export const AgentForm = ({
     })
   );
 
+  const defaultAgent = {
+    name: "",
+    instructions: "",
+    aiProvider: "openrouter",
+    aiModel: "mistralai/mistral-7b-instruct",
+    temperature: 0.7,
+    maxTokens: 1000,
+  };
+  
   const form = useForm<z.output<typeof agentsInsertSchema>>({
     resolver: zodResolver(agentsInsertSchema),
     defaultValues: {
-      name: initialValues?.name ?? "",
-      instructions: initialValues?.instructions ?? "",
-      aiProvider: initialValues?.aiProvider ?? "openrouter",
-      aiModel: initialValues?.aiModel ?? "mistralai/mistral-7b-instruct",
-      temperature: Number(initialValues?.temperature ?? 0.7),
-      maxTokens: Number(initialValues?.maxTokens ?? 1000),
+      ...defaultAgent,
+      ...initialValues,
+      temperature: Number(initialValues?.temperature ?? defaultAgent.temperature),
+      maxTokens: Number(initialValues?.maxTokens ?? defaultAgent.maxTokens),
     },
-  });  
+  });
+  
+   
 
   const isEdit = !!initialValues?.id;
   const isPending = createAgent.isPending || updateAgent.isPending;
