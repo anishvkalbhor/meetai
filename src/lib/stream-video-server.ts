@@ -1,5 +1,5 @@
 // src/lib/stream-video-server.ts
-import { StreamClient } from "@stream-io/node-sdk";
+
 import { StreamChat } from "stream-chat";
 
 export const streamVideo = {
@@ -8,6 +8,7 @@ export const streamVideo = {
     process.env.NEXT_VIDEO_SECRET_KEY!
   ),
   generateUserToken: (payload: { user_id: string; exp: number; iat: number }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const jwt = require("jsonwebtoken");
     return jwt.sign(payload, process.env.NEXT_VIDEO_SECRET_KEY!, {
       algorithm: "HS256",

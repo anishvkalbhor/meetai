@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GeneratedAvatar } from "@/components/generated-avatar";
-import { PlusIcon, MessageSquareIcon, TrashIcon, MoreVerticalIcon } from "lucide-react";
+import { PlusIcon, MessageSquareIcon, TrashIcon, MoreVerticalIcon, SearchIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,10 +35,13 @@ export const ChatSessionsList = ({ onNewChat }: Props) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
 
   const { data, isLoading } = useQuery(
     trpc.chat.getSessions.queryOptions({
       pageSize: 20,
+      search: activeSearch || undefined,
     })
   );
 
@@ -53,6 +57,21 @@ export const ChatSessionsList = ({ onNewChat }: Props) => {
   const handleDeleteSession = async () => {
     if (!deleteSessionId) return;
     await deleteSession.mutateAsync({ id: deleteSessionId });
+  };
+
+  const handleSearch = () => {
+    setActiveSearch(searchQuery);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setActiveSearch("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
 
   if (isLoading) {
@@ -76,18 +95,57 @@ export const ChatSessionsList = ({ onNewChat }: Props) => {
           </Button>
         </div>
 
+        {/* Search Input */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xs">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="pl-10"
+            />
+          </div>
+          <Button 
+            onClick={handleSearch} 
+            size="sm" 
+            variant="outline"
+            disabled={!searchQuery.trim()}
+          >
+            <SearchIcon className="w-4 h-4 mr-1" />
+            Search
+          </Button>
+          {activeSearch && (
+            <Button 
+              onClick={handleClearSearch} 
+              size="sm" 
+              variant="ghost"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+
         {data?.items.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8 px-4">
               <MessageSquareIcon className="w-12 h-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">No chat sessions yet</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">
+                {activeSearch ? "No chats found" : "No chat sessions yet"}
+              </h3>
               <p className="text-gray-500 text-center mb-4">
-                Start a conversation with one of your AI agents
+                {activeSearch 
+                  ? "Try adjusting your search terms"
+                  : "Start a conversation with one of your AI agents"
+                }
               </p>
-              <Button onClick={onNewChat}>
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Start New Chat
-              </Button>
+              {!activeSearch && (
+                <Button onClick={onNewChat}>
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Start New Chat
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (

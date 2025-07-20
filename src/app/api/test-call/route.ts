@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const apiKey = process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY;
     const secretKey = process.env.NEXT_VIDEO_SECRET_KEY;
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         error: "Call creation failed",
         status: response.status,
         statusText: response.statusText,
-        error: errorText,
+        details: errorText,
       });
     }
 

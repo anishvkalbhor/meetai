@@ -2,7 +2,6 @@
 
 import {
   Call,
-  CallingState,
   StreamCall,
   StreamVideo,
   StreamVideoClient,
@@ -79,13 +78,13 @@ export const CallConnect = ({
     setCall(_call);
 
     return () => {
-      if (_call.state.callingState !== "left" && _call.state.callingState !== "offline") {
-        try {
-          _call.leave();
-        } catch (error) {
-          console.log("Call already left during cleanup");
-        }
+          if (_call.state.callingState !== "left" && _call.state.callingState !== "offline") {
+      try {
+        _call.leave();
+      } catch {
+        console.log("Call already left during cleanup");
       }
+    }
       _call.endCall();
       setCall(undefined);
     };

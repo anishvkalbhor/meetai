@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { chatSessions, chatMessages, agents } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-import { chatSessionInsertSchema, chatSessionUpdateSchema, chatMessageInsertSchema } from "../schemas";
+import { chatSessionInsertSchema, chatSessionUpdateSchema } from "../schemas";
 import { z } from "zod";
 import { and, count, desc, eq, getTableColumns, ilike, sql } from "drizzle-orm";
 import {
@@ -170,7 +170,7 @@ export const chatRouter = createTRPCRouter({
         .orderBy(chatMessages.timestamp);
 
       // Prepare messages for AI
-      const messages = conversationHistory.map((msg) => ({
+      const messages: { role: "user" | "assistant" | "system"; content: string }[] = conversationHistory.map((msg) => ({
         role: msg.role as "user" | "assistant",
         content: msg.content,
       }));

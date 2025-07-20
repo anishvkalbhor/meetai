@@ -1,6 +1,5 @@
 import {
   CallEndedEvent,
-  MessageNewEvent,
   CallTranscriptionReadyEvent,
   CallSessionParticipantLeftEvent,
   CallRecordingReadyEvent,
@@ -73,43 +72,7 @@ async function joinStreamCallSession(meetingId: string, agentId: string) {
   }
 }
 
-// src/app/api/webhook/route.ts
-async function handleCallSessionStartedEvent(event: CallSessionStartedEvent) {
-  try {
-    const meetingId = event.call.custom?.meetingId;
-    if (!meetingId) {
-      console.error("No meetingId found in call session started event");
-      return;
-    }
 
-    // Get the meeting and agent details
-    const [existingMeeting] = await db
-      .select()
-      .from(meetings)
-      .where(eq(meetings.id, meetingId));
-
-    if (!existingMeeting) {
-      console.error(`Meeting ${meetingId} not found`);
-      return;
-    }
-
-    const [existingAgent] = await db
-      .select()
-      .from(agents)
-      .where(eq(agents.id, existingMeeting.agentId));
-
-    if (!existingAgent) {
-      console.error(`Agent ${existingMeeting.agentId} not found`);
-      return;
-    }
-
-    // Join the agent to the call
-    await joinStreamCallSession(meetingId, existingAgent.id);
-    console.log(`Agent ${existingAgent.name} joined meeting ${meetingId}`);
-  } catch (error) {
-    console.error(`Failed to handle call session started: ${error}`);
-  }
-}
 
 async function endStreamCallSession(meetingId: string) {
   const apiKey = process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!;

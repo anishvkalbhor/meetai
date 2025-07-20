@@ -22,6 +22,7 @@ import { authClient } from "@/lib/auth-client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FaGithub, FaGoogle } from "react-icons/fa";
+import Image from "next/image";
 
 
 const formSchema = z
@@ -238,7 +239,7 @@ export const SignUpView = () => {
           </Form>
 
           <div className="bg-radial from-sidebar-accent to-sidebar relative hidden md:flex flex-col gap-y-4 items-center justify-center">
-            <img
+            <Image
               src="/logo.svg"
               alt="MeetAI Logo"
               className="h-[92px] w-[92px]"

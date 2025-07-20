@@ -107,13 +107,13 @@ export const CallUI = ({ meetingName }: Props) => {
     };
 
     // Use the correct event type
-    call.on("call.state.changed" as any, handleCallStateChange);
+    call.on("call.state.changed" as string, handleCallStateChange);
 
     // Also handle initial state
     handleCallStateChange();
 
     return () => {
-      call.off("call.state.changed" as any, handleCallStateChange);
+      call.off("call.state.changed" as string, handleCallStateChange);
     };
   }, [call]);
 

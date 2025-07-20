@@ -12,9 +12,9 @@ import {
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schemas";
 import { MeetingStatus } from "../types";
-import { streamVideo } from "@/lib/stream-video-server";
+
 import { generateAvatarUri } from "@/lib/avatar";
-import { streamVideoClient } from "@/lib/stream-video-client";
+import { streamVideo } from "@/lib/stream-video-server";
 
 import jwt from "jsonwebtoken";
 

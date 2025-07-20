@@ -5,7 +5,7 @@ import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { eq, inArray } from "drizzle-orm";
 import JSONL from "jsonl-parse-stringify";
 import { createAgent, gemini, TextMessage } from "@inngest/agent-kit";
-import { streamVideo } from "@/lib/stream-video-server";
+
 import { StreamChat } from "stream-chat";
 import { askAIAgent } from "@/lib/ai-service";
 
@@ -30,11 +30,7 @@ Break down key content into thematic sections with timestamp ranges. Each sectio
 `.trim(),
 });
 
-const chatAgent = createAgent({
-  name: "Chat Agent",
-  model,
-  system: `You are a helpful meeting assistant. Your goal is to answer questions and provide useful information based on the conversation. Be concise and friendly.`,
-});
+
 
 export const meetingsProcessing = inngest.createFunction(
   { id: "meetings/processing" },

@@ -5,9 +5,9 @@ import { useTRPC } from "@/trpc/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 import { GeneratedAvatar } from "@/components/generated-avatar";
-import { SendIcon, DownloadIcon, FileTextIcon, LoaderIcon, SparklesIcon, XIcon, EditIcon, TrashIcon, MoreVerticalIcon } from "lucide-react";
+import { SendIcon, DownloadIcon, LoaderIcon, SparklesIcon, XIcon, EditIcon, TrashIcon, MoreVerticalIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   Dialog,

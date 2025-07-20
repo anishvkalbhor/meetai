@@ -9,10 +9,7 @@ import {
   SparklesIcon, 
   UsersIcon, 
   ZapIcon, 
-  ShieldIcon,
   ArrowRightIcon,
-  CheckIcon,
-  StarIcon,
   DownloadIcon,
   FileTextIcon
 } from "lucide-react";
