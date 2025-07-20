@@ -14,9 +14,9 @@
   "dependencies": {
     "@dicebear/collection": "^9.2.3",
     "@dicebear/core": "^9.2.3",
-    "@hookform/resolvers": "^5.1.1",
     "@inngest/agent-kit": "^0.9.0",
     "@neondatabase/serverless": "^1.0.0",
+    "@opentelemetry/winston-transport": "^0.14.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -88,6 +88,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@hookform/resolvers": "^5.1.1",
     "@tailwindcss/postcss": "^4",
     "@types/humanize-duration": "^3.27.4",
     "@types/node": "^20",

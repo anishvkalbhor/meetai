@@ -18,6 +18,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 
 import { toast } from "sonner";
@@ -29,9 +30,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FormDescription } from "@/components/ui/form";
 
 import { getAvailableProviders, getModelsForProvider } from "@/lib/ai-service";
+
+type AgentFormValues = z.infer<typeof agentsInsertSchema>;
 
 interface AgentFormProps {
   onSuccess?: () => void;
@@ -55,15 +57,12 @@ export const AgentForm = ({
     trpc.agents.create.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries(
-            trpc.agents.getMany.queryOptions({}),
+          trpc.agents.getMany.queryOptions({}),
         );
-        // TODO: Invalidate free tier usage
         onSuccess?.();
       },
       onError: (error) => {
-        toast.error(error.message)
-
-        // TODO: Check if error code is "FORBIDDEN" and redirect to "/upgrade"
+        toast.error(error.message);
       },
     })
   );
@@ -72,48 +71,37 @@ export const AgentForm = ({
     trpc.agents.update.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries(
-            trpc.agents.getMany.queryOptions({}),
+          trpc.agents.getMany.queryOptions({}),
         );
         if (initialValues?.id) {
-            await queryClient.invalidateQueries(
-                trpc.agents.getOne.queryOptions({ id: initialValues.id }),
-            );
+          await queryClient.invalidateQueries(
+            trpc.agents.getOne.queryOptions({ id: initialValues.id }),
+          );
         }
         onSuccess?.();
       },
       onError: (error) => {
-        toast.error(error.message)
-
-        // TODO: Check if error code is "FORBIDDEN" and redirect to "/upgrade"
+        toast.error(error.message);
       },
     })
   );
 
-  const defaultAgent = {
-    name: "",
-    instructions: "",
-    aiProvider: "openrouter",
-    aiModel: "mistralai/mistral-7b-instruct",
-    temperature: 0.7,
-    maxTokens: 1000,
-  };
-  
-  const form = useForm<z.output<typeof agentsInsertSchema>>({
+  const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentsInsertSchema),
     defaultValues: {
-      ...defaultAgent,
-      ...initialValues,
-      temperature: Number(initialValues?.temperature ?? defaultAgent.temperature),
-      maxTokens: Number(initialValues?.maxTokens ?? defaultAgent.maxTokens),
+      name: initialValues?.name ?? "",
+      instructions: initialValues?.instructions ?? "",
+      aiProvider: initialValues?.aiProvider ?? "openrouter",
+      aiModel: initialValues?.aiModel ?? "mistralai/mistral-7b-instruct",
+      temperature: Number(initialValues?.temperature ?? 0.7),
+      maxTokens: Number(initialValues?.maxTokens ?? 1000),
     },
   });
-  
-   
 
   const isEdit = !!initialValues?.id;
   const isPending = createAgent.isPending || updateAgent.isPending;
 
-  const onSubmit = (values: z.infer<typeof agentsInsertSchema>) => {
+  const onSubmit = (values: AgentFormValues) => {
     if (isEdit) {
       updateAgent.mutate({ id: initialValues.id, ...values });
     } else {
@@ -129,6 +117,7 @@ export const AgentForm = ({
           variant="botttsNeutral"
           className="border size-16"
         />
+
         <FormField
           name="name"
           control={form.control}
@@ -151,7 +140,7 @@ export const AgentForm = ({
               <FormLabel>Instructions</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="e.g. You are a helpful math tutor. Answer questions and explain concepts clearly."
+                  placeholder="e.g. You are a helpful math tutor..."
                   {...field}
                 />
               </FormControl>
@@ -168,12 +157,14 @@ export const AgentForm = ({
               <FormItem>
                 <FormLabel>AI Provider</FormLabel>
                 <FormControl>
-                  <Select onValueChange={(value) => {
-                    field.onChange(value);
-                    setSelectedProvider(value);
-                    // Reset model to default for new provider
-                    form.setValue("aiModel", getModelsForProvider(value)[0] || "");
-                  }} defaultValue={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      setSelectedProvider(value);
+                      form.setValue("aiModel", getModelsForProvider(value)[0] || "");
+                    }}
+                    value={field.value}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select AI Provider" />
                     </SelectTrigger>
@@ -198,7 +189,7 @@ export const AgentForm = ({
               <FormItem>
                 <FormLabel>AI Model</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select AI Model" />
                     </SelectTrigger>
@@ -225,13 +216,13 @@ export const AgentForm = ({
               <FormItem>
                 <FormLabel>Temperature</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.1" 
-                    min="0" 
-                    max="2" 
-                    placeholder="0.7" 
-                    {...field} 
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="2"
+                    placeholder="0.7"
+                    {...field}
                   />
                 </FormControl>
                 <FormDescription>
@@ -249,12 +240,12 @@ export const AgentForm = ({
               <FormItem>
                 <FormLabel>Max Tokens</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1" 
-                    max="4000" 
-                    placeholder="1000" 
-                    {...field} 
+                  <Input
+                    type="number"
+                    min="1"
+                    max="4000"
+                    placeholder="1000"
+                    {...field}
                   />
                 </FormControl>
                 <FormDescription>
@@ -268,11 +259,7 @@ export const AgentForm = ({
 
         <div className="flex justify-between gap-x-2">
           {onCancel && (
-            <Button
-              variant="outline"
-              disabled={isPending}
-              onClick={() => onCancel()}
-            >
+            <Button variant="outline" disabled={isPending} onClick={onCancel}>
               Cancel
             </Button>
           )}
