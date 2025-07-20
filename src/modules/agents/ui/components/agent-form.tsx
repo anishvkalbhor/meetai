@@ -89,17 +89,19 @@ export const AgentForm = ({
     })
   );
 
-  const form = useForm<z.infer<typeof agentsInsertSchema>>({
+  const form = useForm<z.output<typeof agentsInsertSchema>>({
     resolver: zodResolver(agentsInsertSchema),
     defaultValues: {
       name: initialValues?.name ?? "",
       instructions: initialValues?.instructions ?? "",
       aiProvider: initialValues?.aiProvider ?? "openrouter",
       aiModel: initialValues?.aiModel ?? "mistralai/mistral-7b-instruct",
-      temperature: initialValues?.temperature ?? "0.7",
-      maxTokens: initialValues?.maxTokens ?? "1000",
+      temperature: Number(initialValues?.temperature ?? 0.7),
+      maxTokens: Number(initialValues?.maxTokens ?? 1000),
     },
   });
+  
+  
 
   const isEdit = !!initialValues?.id;
   const isPending = createAgent.isPending || updateAgent.isPending;

@@ -5,9 +5,11 @@ export const agentsInsertSchema = z.object({
     instructions: z.string().min(1, "Instructions are required"),
     aiProvider: z.string().default("openrouter"),
     aiModel: z.string().default("mistralai/mistral-7b-instruct"),
-    temperature: z.string().default("0.7"),
-    maxTokens: z.string().default("1000"),
-})
+    temperature: z.coerce.number().min(0).max(2).default(0.7),
+    maxTokens: z.coerce.number().min(1).max(4000).default(1000),
+  });
+  
+  
 
 export const agentsUpdateSchema = agentsInsertSchema.extend({
     id: z.string().min(1, { message: "ID is required" }),
