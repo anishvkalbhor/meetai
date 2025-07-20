@@ -1,4 +1,4 @@
-import { StreamTheme, useCall } from "@stream-io/video-react-sdk";
+import { EventTypes, StreamTheme, useCall } from "@stream-io/video-react-sdk";
 import { useState, useEffect } from "react";
 import { CallLobby } from "./call-lobby";
 import { CallActive } from "./call-active";
@@ -107,13 +107,13 @@ export const CallUI = ({ meetingName }: Props) => {
     };
 
     // Use the correct event type
-    call.on("call.state.changed" as string, handleCallStateChange);
+    call.on("call.state.changed" as unknown as EventTypes, handleCallStateChange);
 
     // Also handle initial state
     handleCallStateChange();
 
     return () => {
-      call.off("call.state.changed" as string, handleCallStateChange);
+      call.off("call.state.changed" as unknown as EventTypes, handleCallStateChange);
     };
   }, [call]);
 
